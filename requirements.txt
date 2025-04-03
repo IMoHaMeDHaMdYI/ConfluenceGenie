@@ -1,0 +1,4 @@
+sentence-transformers>=2.2.2
+atlassian-python-api>=3.41.0
+beautifulsoup4>=4.12.2
+markdown>=3.5.1 
