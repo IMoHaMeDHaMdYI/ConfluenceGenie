@@ -19,12 +19,14 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.python-version
 
 # Virtual Environment
 venv/
 ENV/
 env/
 .env/
+.venv/
 
 # IDE
 .idea/
@@ -32,14 +34,18 @@ env/
 *.swp
 *.swo
 .DS_Store
+*.sublime-workspace
+*.sublime-project
 
 # Application specific
 confluence_content/
 credentials.json
 network_requests.log
 network_requests.json
+*.spec
+icon.icns
 
-# Model files
+# Model files and caches
 *.bin
 *.pt
 *.pth
@@ -48,19 +54,21 @@ network_requests.json
 *.hdf5
 *.model
 *.weights
+.cache/
+.huggingface/
 
-# Logs
+# Logs and debug files
 *.log
 logs/
+debug.log
+error.log
 
-# Cache
-.cache/
-.pytest_cache/
+# Testing
 .coverage
 htmlcov/
-
-# Jupyter Notebook
-.ipynb_checkpoints
+.pytest_cache/
+.tox/
+.nox/
 
 # Distribution / packaging
 .Python
@@ -78,4 +86,19 @@ sdist/
 var/
 *.egg-info/
 .installed.cfg
-*.egg 
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride 
