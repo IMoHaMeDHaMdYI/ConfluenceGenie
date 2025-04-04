@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from models.mpnet_model import MPNetModel
 from models.minilm_model import MiniLMModel
+from models.bedrock_model import BedrockModel
 
 class ModelSelection:
     def __init__(self, parent, chat_window):
@@ -20,6 +21,8 @@ class ModelSelection:
                        variable=self.model_var, value="MPNet").pack(anchor="w")
         ttk.Radiobutton(model_frame, text="MiniLM (all-MiniLM-L6-v2)", 
                        variable=self.model_var, value="MiniLM").pack(anchor="w")
+        ttk.Radiobutton(model_frame, text="AWS Bedrock (Titan Embed)", 
+                       variable=self.model_var, value="Bedrock").pack(anchor="w")
         
         ttk.Button(model_frame, text="Load Model", 
                   command=self.load_selected_model).pack(pady=5)
@@ -28,8 +31,10 @@ class ModelSelection:
         try:
             if self.model_var.get() == "MPNet":
                 self.model = MPNetModel()
-            else:
+            elif self.model_var.get() == "MiniLM":
                 self.model = MiniLMModel()
+            else:  # Bedrock
+                self.model = BedrockModel()
             messagebox.showinfo("Success", f"Loaded {self.model.get_model_name()} model successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load model: {str(e)}")
