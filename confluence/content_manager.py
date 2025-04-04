@@ -14,7 +14,8 @@ class ContentManager:
             cleaned_content = self._clean_content(content)
             
             # Create metadata section
-            metadata = f"SPACE: {page_title or 'Untitled'}\n"
+            metadata = f"TITLE: {page_title or 'Untitled'}\n"
+            metadata += f"SPACE: {space_name or 'Not a space'}\n"
             if page_url:
                 metadata += f"URL: {page_url}\n"
             metadata += "---\n"

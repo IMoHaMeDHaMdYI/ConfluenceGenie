@@ -72,10 +72,15 @@ class MainWindow:
         self.token_entry = ttk.Entry(connection_frame, width=40, show="*")
         self.token_entry.grid(row=2, column=1, padx=5, pady=5)
         
+        # Space ID (optional)
+        ttk.Label(connection_frame, text="Space ID (optional):").grid(row=3, column=0, padx=5, pady=5)
+        self.space_id_entry = ttk.Entry(connection_frame, width=40)
+        self.space_id_entry.grid(row=3, column=1, padx=5, pady=5)
+        
         # Connect button
         self.connect_button = ttk.Button(connection_frame, text="Connect", 
                                        command=self.connect_to_confluence)
-        self.connect_button.grid(row=3, column=1, pady=10)
+        self.connect_button.grid(row=4, column=1, pady=10)
     
     def setup_content_frame(self, parent):
         content_frame = ttk.LabelFrame(parent, text="Confluence Spaces and Pages", padding="5")
@@ -110,6 +115,7 @@ class MainWindow:
                 self.url_entry.insert(0, credentials.get("url", ""))
                 self.username_entry.insert(0, credentials.get("username", ""))
                 self.token_entry.insert(0, credentials.get("api_token", ""))
+                self.space_id_entry.insert(0, credentials.get("space_id", ""))
                 logging.info("Credentials loaded successfully")
         except FileNotFoundError:
             logging.info("No saved credentials found")
@@ -120,9 +126,10 @@ class MainWindow:
         url = self.url_entry.get().strip()
         username = self.username_entry.get().strip()
         api_token = self.token_entry.get().strip()
+        space_id = self.space_id_entry.get().strip()
         
         if not all([url, username, api_token]):
-            messagebox.showerror("Error", "Please fill in all fields.")
+            messagebox.showerror("Error", "Please fill in all required fields.")
             return
         
         try:
@@ -142,23 +149,45 @@ class MainWindow:
             # Clear existing content
             self.content_manager.clear_content()
             
-            # Fetch and display spaces
-            spaces = self.confluence_client.get_spaces()
-            for space in spaces:
-                space_item = self.tree.insert("", "end", values=(space["name"], "Space", space["key"]))
-                # Add a dummy item to make the space expandable
-                self.tree.insert(space_item, "end", values=("Loading...", "", ""))
-                
-                # Fetch and save all pages in this space
+            # If space_id is provided, only fetch data from that space
+            if space_id:
                 try:
-                    pages = self.confluence_client.get_pages(space["key"])
-                    for page in pages:
-                        # Save page content
-                        content = self.confluence_client.get_page_content(page["id"])
-                        page_url = f"{url}/pages/viewpage.action?pageId={page['id']}"
-                        self.content_manager.store_content(content, page["title"], space["name"], page_url)
+                    # Get space details
+                    space = self.confluence_client.get_space(space_id)
+                    if space:
+                        space_item = self.tree.insert("", "end", values=(space["name"], "Space", space["key"]))
+                        # Add a dummy item to make the space expandable
+                        self.tree.insert(space_item, "end", values=("Loading...", "", ""))
+                        
+                        # Fetch and save all pages in this space
+                        pages = self.confluence_client.get_pages(space["key"])
+                        for page in pages:
+                            # Save page content
+                            content = self.confluence_client.get_page_content(page["id"])
+                            page_url = f"{url}/pages/viewpage.action?pageId={page['id']}"
+                            self.content_manager.store_content(content, page["title"], space["name"], page_url)
                 except Exception as e:
-                    logging.error(f"Error fetching pages for space {space['name']}: {str(e)}")
+                    logging.error(f"Error fetching data for space {space_id}: {str(e)}")
+                    messagebox.showerror("Error", f"Error fetching data for space {space_id}: {str(e)}")
+                    return
+            else:
+                # Fetch and display all spaces
+                spaces = self.confluence_client.get_spaces()
+                for space in spaces:
+                    space_item = self.tree.insert("", "end", values=(space["name"], "Space", space["key"]))
+                    # Add a dummy item to make the space expandable
+                    self.tree.insert(space_item, "end", values=("Loading...", "", ""))
+                    
+                    # Fetch and save all pages in this space
+                    try:
+                        pages = self.confluence_client.get_pages(space["key"])
+                        for page in pages:
+                            # Save page content
+                            content = self.confluence_client.get_page_content(page["id"])
+                            page_url = f"{url}/pages/viewpage.action?pageId={page['id']}"
+                            self.content_manager.store_content(content, page["title"], space["name"], page_url)
+                    except Exception as e:
+                        logging.error(f"Error fetching pages for space {space['name']}: {str(e)}")
             
             # Save credentials
             logging.info("Saving credentials")
@@ -166,7 +195,8 @@ class MainWindow:
                 json.dump({
                     "url": url,
                     "username": username,
-                    "api_token": api_token
+                    "api_token": api_token,
+                    "space_id": space_id
                 }, f)
             logging.info("Credentials saved successfully")
             
@@ -177,25 +207,32 @@ class MainWindow:
             messagebox.showerror("Error", f"Failed to connect: {str(e)}")
     
     def on_item_double_click(self, event):
-        item = self.tree.selection()[0]
+        # Check if there's a selected item
+        selected_items = self.tree.selection()
+        if not selected_items:
+            return
+        
+        item = selected_items[0]
         item_type = self.tree.item(item, "values")[1]
         item_id = self.tree.item(item, "values")[2]
         
         if item_type == "Space":
-            # Clear existing items
-            for child in self.tree.get_children():
-                self.tree.delete(child)
-            
-            # Fetch and display pages
-            pages = self.confluence_client.get_pages(item_id)
-            for page in pages:
-                self.tree.insert("", "end", values=(page["title"], "Page", page["id"]))
+            # Check if the space is already expanded
+            if self.tree.get_children(item):
+                # If the first child is "Loading...", fetch the pages
+                if self.tree.item(self.tree.get_children(item)[0], "values")[0] == "Loading...":
+                    # Remove the loading item
+                    self.tree.delete(self.tree.get_children(item)[0])
+                    
+                    # Fetch and display pages
+                    pages = self.confluence_client.get_pages(item_id)
+                    for page in pages:
+                        self.tree.insert(item, "end", values=(page["title"], "Page", page["id"]))
         
         elif item_type == "Page":
-            # Fetch and display page content
-            content = self.confluence_client.get_page_content(item_id)
-            self.content_manager.store_content(content)
-            self.chat_window.update_content(content)
+            # Open the page in a separate window
+            page_title = self.tree.item(item, "values")[0]
+            self.open_page_window(item_id, page_title)
 
     def open_page_window(self, page_id, page_title):
         # Create a new window

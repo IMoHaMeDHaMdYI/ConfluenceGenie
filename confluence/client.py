@@ -55,3 +55,14 @@ class ConfluenceClient:
         text = text.strip()  # Remove leading/trailing whitespace
         
         return text 
+    
+    def get_space(self, space_key):
+        """Get details for a specific space."""
+        if not self.client:
+            raise Exception("Not connected to Confluence")
+        
+        try:
+            space = self.client.get_space(space_key)
+            return space
+        except Exception as e:
+            raise Exception(f"Error getting space {space_key}: {str(e)}") 
