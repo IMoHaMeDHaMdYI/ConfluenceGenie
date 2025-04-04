@@ -139,10 +139,26 @@ class MainWindow:
             for item in self.tree.get_children():
                 self.tree.delete(item)
             
+            # Clear existing content
+            self.content_manager.clear_content()
+            
             # Fetch and display spaces
             spaces = self.confluence_client.get_spaces()
             for space in spaces:
-                self.tree.insert("", "end", values=(space["name"], "Space", space["key"]))
+                space_item = self.tree.insert("", "end", values=(space["name"], "Space", space["key"]))
+                # Add a dummy item to make the space expandable
+                self.tree.insert(space_item, "end", values=("Loading...", "", ""))
+                
+                # Fetch and save all pages in this space
+                try:
+                    pages = self.confluence_client.get_pages(space["key"])
+                    for page in pages:
+                        # Save page content
+                        content = self.confluence_client.get_page_content(page["id"])
+                        page_url = f"{url}/pages/viewpage.action?pageId={page['id']}"
+                        self.content_manager.store_content(content, page["title"], space["name"], page_url)
+                except Exception as e:
+                    logging.error(f"Error fetching pages for space {space['name']}: {str(e)}")
             
             # Save credentials
             logging.info("Saving credentials")
@@ -179,4 +195,40 @@ class MainWindow:
             # Fetch and display page content
             content = self.confluence_client.get_page_content(item_id)
             self.content_manager.store_content(content)
-            self.chat_window.update_content(content) 
+            self.chat_window.update_content(content)
+
+    def open_page_window(self, page_id, page_title):
+        # Create a new window
+        page_window = tk.Toplevel(self.root)
+        page_window.title(f"Page: {page_title}")
+        page_window.geometry("800x600")
+        
+        # Create a text widget to display the content
+        text_widget = tk.Text(page_window, wrap=tk.WORD)
+        text_widget.pack(fill=tk.BOTH, expand=True)
+        
+        # Fetch and display the page content
+        content = self.confluence_client.get_page_content(page_id)
+        
+        # Get the space name
+        space_name = "Unknown Space"
+        parent_item = self.tree.parent(self.tree.selection()[0])
+        if parent_item:
+            space_name = self.tree.item(parent_item, "values")[0]
+        
+        # Get the page URL
+        url = self.url_entry.get().strip()
+        if not url.startswith("https://"):
+            url = "https://" + url
+        if url.endswith("/"):
+            url = url[:-1]
+        page_url = f"{url}/pages/viewpage.action?pageId={page_id}"
+        
+        # Clear existing content and store new content
+        self.content_manager.clear_content()
+        self.content_manager.store_content(content, page_title, space_name, page_url)
+        self.chat_window.update_content(content)
+        
+        # Display content in the new window
+        text_widget.insert(tk.END, content)
+        text_widget.config(state=tk.DISABLED)  # Make the text widget read-only 

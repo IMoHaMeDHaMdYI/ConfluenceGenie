@@ -1,6 +1,7 @@
 from atlassian import Confluence
 from bs4 import BeautifulSoup
 import re
+import json
 
 class ConfluenceClient:
     def __init__(self):
@@ -17,8 +18,19 @@ class ConfluenceClient:
         if not self.client:
             raise Exception("Not connected to Confluence")
         
-        spaces = self.client.get_all_spaces()
-        return [{"name": space["name"], "key": space["key"]} for space in spaces]
+        try:
+            spaces = self.client.get_all_spaces()
+            if isinstance(spaces, str):
+                # If spaces is a string, try to parse it as JSON
+                spaces = json.loads(spaces)
+            
+            # Ensure spaces is a list
+            if not isinstance(spaces, list):
+                spaces = [spaces]
+            
+            return [{"name": space.get("name", ""), "key": space.get("key", "")} for space in spaces]
+        except Exception as e:
+            raise Exception(f"Error getting spaces: {str(e)}")
     
     def get_pages(self, space_key):
         if not self.client:
